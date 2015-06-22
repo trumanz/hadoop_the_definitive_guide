@@ -1,0 +1,2 @@
+ftp://ftp.ncdc.noaa.gov/pub/data/noaa/
+https://github.com/tomwhite/hadoop-book/tree/master/input/ncdc/all
