@@ -24,6 +24,7 @@ public class MaxTemperature {
 
 		Configuration conf = new Configuration();
 		
+	
 		Job job = Job.getInstance(conf);
 
 		job.setJarByClass(MaxTemperature.class);

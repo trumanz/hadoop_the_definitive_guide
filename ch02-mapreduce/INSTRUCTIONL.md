@@ -14,3 +14,7 @@ ftp://ftp.ncdc.noaa.gov/pub/data/noaa/
 
 5. Run the mapreduce
    root@ag1:/local/ch02-mapreduce/MaxTemperature/target# su hdfs -c  "hadoop jar MaxTemperature-0.0.1-SNAPSHOT.jar   trumanz.MaxTemperature.MaxTemperature   /tmp/maxtemp/input   /tmp/maxtemp/output"
+
+6. Run the Streaming mapreduce(python)
+  root@ag1:/local/ch02-mapreduce/data# su hdfs -c  "hadoop jar /usr/hdp/2.2.4.2-2/hadoop-mapreduce/hadoop-streaming-2.6.0.2.2.4.2-2.jar -input  /tmp/maxtemp/input   -output  /tmp/maxtemp/output2   -mapper ../MaxTemperature/src/main/python/max_temperature_map.py  --reducer  ../MaxTemperature/src/main/python/max_temperature_reduce.py"
+
