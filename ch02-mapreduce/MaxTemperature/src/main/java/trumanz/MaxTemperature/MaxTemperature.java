@@ -16,10 +16,14 @@ import com.sun.jersey.core.impl.provider.entity.XMLJAXBElementProvider.Text;
  *
  */
 public class MaxTemperature {
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
 
-		Path inputPath = new Path("");
-		Path outputPath = new Path("");
+		if(args.length != 2){
+			System.err.println("Usage: MaxTemperature <input path>  <output path>");
+			System.exit(-1);
+		}
+		Path inputPath = new Path(args[0]);
+		Path outputPath = new Path(args[1]);
 
 		Configuration conf = new Configuration();
 		
