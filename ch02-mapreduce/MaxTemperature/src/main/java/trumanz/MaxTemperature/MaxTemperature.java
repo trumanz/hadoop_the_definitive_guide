@@ -23,7 +23,7 @@ public class MaxTemperature {
 		Path outputPath = new Path(args[1]);
 
 		Configuration conf = new Configuration();
-		
+	
 	
 		Job job = Job.getInstance(conf);
 
