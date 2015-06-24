@@ -29,6 +29,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.log4j.Logger;
 
@@ -78,9 +79,8 @@ public class Client {
 				.getApplicationSubmissionContext());
 
 		
-		ApplicationReport report = yarnClient.getApplicationReport(appId);
-
-		monitorApplicationReport(report);
+	
+		monitorApplicationReport(yarnClient, appId);
 
 	}
 
@@ -153,14 +153,14 @@ public class Client {
 
 	}
 
-	private static void monitorApplicationReport(ApplicationReport report) {
+	private static void monitorApplicationReport(YarnClient yarnClient, ApplicationId appId) throws YarnException, IOException {
 		while (true) {
 			try {
 				Thread.sleep(5 * 1000);
 			} catch (InterruptedException e) {
 
 			}
-
+			ApplicationReport report = yarnClient.getApplicationReport(appId);
 			logger.info("Got application report " + ", clientToAMToken="
 					+ report.getClientToAMToken() + ", appDiagnostics="
 					+ report.getDiagnostics() + ", appMasterHost="

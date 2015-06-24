@@ -187,15 +187,21 @@ public class ApplicationMaster {
 	void waitComplete() throws YarnException, IOException{
 		while(numTotalContainers.get() != numCompletedConatiners.get()){
 			try{
-				Thread.sleep(200);
+				Thread.sleep(1000);
+				LOG.info("waitComplete" + 
+					", numTotalContainers=" + numTotalContainers.get() +
+					", numCompletedConatiners=" + numCompletedConatiners.get());
 			} catch (InterruptedException ex){}
 		}
+		LOG.info("ShutDown exeService Start");
 		exeService.shutdown();
+		LOG.info("ShutDown exeService Complete");
 		amNMClient.stop();
-		
+		LOG.info("amNMClient  stop  Complete");
 		amRMClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "dummy Message", null);
-		
+		LOG.info("unregisterApplicationMaster  Complete");
 		amRMClient.stop();
+		LOG.info("amRMClient  stop Complete");
 	}
 
 	void logInformation() {
