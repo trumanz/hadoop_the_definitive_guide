@@ -60,15 +60,18 @@ public class Client {
 		app.getApplicationSubmissionContext().setApplicationName(
 				"truman.ApplicationMaster");
 		
-		// 3. Set the app's localResource env and command by
+		// 3. Set the app's resource usage, 100*10MB, 1vCPU
+				Resource capability = Resource.newInstance(100, 1);
+				app.getApplicationSubmissionContext().setResource(capability);
+				
+		
+		// 4. Set the app's localResource env and command by
 		// ContainerLaunchContext
 		ContainerLaunchContext amContainer = createAMContainerLanunchContext(
 				conf, app.getApplicationSubmissionContext().getApplicationId());
 		app.getApplicationSubmissionContext().setAMContainerSpec(amContainer);
 
-		// 4. Set the app's resource usage, 100*10MB, 1vCPU
-		Resource capability = Resource.newInstance(100, 1);
-		app.getApplicationSubmissionContext().setResource(capability);
+		
 		
 
 		// 5. submit to queue default
