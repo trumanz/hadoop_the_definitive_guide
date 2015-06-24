@@ -1,6 +1,5 @@
 package trumanz.yarnExample;
 
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -37,133 +36,143 @@ import org.apache.log4j.Logger;
  * Hello world!
  *
  */
-public class Client 
-{
-	static private  Logger logger = Logger.getLogger("trumanz");
-    public static void main( String[] args ) throws Exception
-    {
-        System.out.println( "Hello World!" );
-        
-       
-        
-        Configuration conf = new Configuration();
-        
-        //1. create and start a yarnClient
-        YarnClient yarnClient = YarnClient.createYarnClient();
-        yarnClient.init(conf);
-        yarnClient.start();
-        
-        //2. create an application
-        YarnClientApplication app = yarnClient.createApplication();
-        GetNewApplicationResponse  appResponse = app.getNewApplicationResponse();
-        logger.info("appRespons.getMaximumResourceCapability() :"
-        		+ appResponse.getMaximumResourceCapability().toString());
-        
-        //3. set the application submission context
-        ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
-        ApplicationId appId = appContext.getApplicationId();
-        logger.info("appId:"+ appId.toString());
-        
-      
-        appContext.setKeepContainersAcrossApplicationAttempts(false);
-        
-        //4. add local resources
-        Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
-        FileSystem fs = FileSystem.get(conf);
-        String thisJar = ClassUtil.findContainingJar(Client.class);
-        String thisJarBaseName = FilenameUtils.getName(thisJar);
-        logger.info("thisJar is " + thisJar);
-        
-        addToLocalResources(fs, thisJar, thisJarBaseName, appId.toString(), localResources);
-        
-        //5. set env , CLASSPTH
-        Map<String, String> env  = new HashMap<String, String>();
-        StringBuilder classPathEnv = new StringBuilder(Environment.CLASSPATH.$$());
-        classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
-        classPathEnv.append("./*");
-      for (String c : conf.getStrings(
-          YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-          YarnConfiguration.DEFAULT_YARN_CROSS_PLATFORM_APPLICATION_CLASSPATH)) {
-        classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
-        classPathEnv.append(c.trim());
-      }
-      
-      if (conf.getBoolean(YarnConfiguration.IS_MINI_YARN_CLUSTER, false)) {
-        classPathEnv.append(':');
-        classPathEnv.append(System.getProperty("java.class.path"));
-      }
+public class Client {
+	static private Logger logger = Logger.getLogger("trumanz");
 
-      env.put(Environment.CLASSPATH.name(), classPathEnv.toString());
-        
-        //6. set java executable command
-        List<String> commands = new LinkedList<String>();
-        commands.add(Environment.JAVA_HOME.$$() + "/bin/java" + 
-        		" trumanz.yarnExample.ApplicationMaster");
-        //commands.add("sleep 1000");
-        
-        //application master
-        ContainerLaunchContext amContainer = ContainerLaunchContext.newInstance(
-        		localResources, env, commands, null, null, null);
-        		
-        if(UserGroupInformation.isSecurityEnabled()){
-        	throw new Exception("SecurityEnabled , not support");
-        }
-        
-        //100m 1cpu
-        Resource capability = Resource.newInstance(100, 1);
-        appContext.setApplicationName("truman.ApplicationMaster");
-        appContext.setResource(capability);
-        
-        appContext.setAMContainerSpec(amContainer);
-        
-        //submit 
-        appContext.setPriority(Priority.newInstance(0));
-        appContext.setQueue("default");
-        yarnClient.submitApplication(appContext);
-        
-        
-        ApplicationReport report = yarnClient.getApplicationReport(appId);
-        
-        monitorApplicationReport(report);
-        
-    
-    }
-     private static void addToLocalResources(FileSystem fs, String fileSrcPath, String fileDstPath,
-    		String appId, Map<String, LocalResource> localResources) 
-    				throws IllegalArgumentException, IOException{
-    	String suffix = "mytest" + "/" + appId + "/" + fileDstPath;
-    	Path dst = new Path(fs.getHomeDirectory(), suffix);
-    	logger.info("hdfs copyFromLocalFile " + fileSrcPath   + " =>" + dst);
-    	fs.copyFromLocalFile(new Path(fileSrcPath), dst);
-    	FileStatus scFileStatus = fs.getFileStatus(dst);
-    	LocalResource scRsrc = LocalResource.newInstance(ConverterUtils.getYarnUrlFromPath(dst), 
-    			LocalResourceType.FILE, LocalResourceVisibility.APPLICATION,
-    			scFileStatus.getLen(), scFileStatus.getModificationTime());
-    	
-    	localResources.put(fileDstPath, scRsrc);
- 
-    }
-     
-     private static void  monitorApplicationReport(ApplicationReport report)
-     {
-    	 while(true){
-    		 try{
-    			 Thread.sleep(5*1000);
-    		 } catch (InterruptedException e){
-    			 
-    		 }
-    		 
-    	 logger.info("Got application report "
-    	          + ", clientToAMToken=" + report.getClientToAMToken()
-    	          + ", appDiagnostics=" + report.getDiagnostics()
-    	          + ", appMasterHost=" + report.getHost()
-    	          + ", appQueue=" + report.getQueue()
-    	          + ", appMasterRpcPort=" + report.getRpcPort()
-    	          + ", appStartTime=" + report.getStartTime()
-    	          + ", yarnAppState=" + report.getYarnApplicationState().toString()
-    	          + ", distributedFinalState=" + report.getFinalApplicationStatus().toString()
-    	          + ", appTrackingUrl=" + report.getTrackingUrl()
-    	          + ", appUser=" + report.getUser());
-    	 }
-     }
+	public static void main(String[] args) throws Exception {
+
+		Configuration conf = new Configuration();
+
+		if (UserGroupInformation.isSecurityEnabled()) {
+			throw new Exception("SecurityEnabled , not support");
+		}
+
+		// 1. create and start a yarnClient
+		YarnClient yarnClient = YarnClient.createYarnClient();
+		yarnClient.init(conf);
+		yarnClient.start();
+
+		// 2. create an application
+		YarnClientApplication app = yarnClient.createApplication();
+		app.getApplicationSubmissionContext()
+				.setKeepContainersAcrossApplicationAttempts(false);
+		app.getApplicationSubmissionContext().setApplicationName(
+				"truman.ApplicationMaster");
+		
+		// 3. Set the app's localResource env and command by
+		// ContainerLaunchContext
+		ContainerLaunchContext amContainer = createAMContainerLanunchContext(
+				conf, app.getApplicationSubmissionContext().getApplicationId());
+		app.getApplicationSubmissionContext().setAMContainerSpec(amContainer);
+
+		// 4. Set the app's resource usage, 100MB, 1vCPU
+		Resource capability = Resource.newInstance(100, 1);
+		app.getApplicationSubmissionContext().setResource(capability);
+		
+
+		// 5. submit to queue default
+		app.getApplicationSubmissionContext().setPriority(
+				Priority.newInstance(0));
+		app.getApplicationSubmissionContext().setQueue("default");
+		ApplicationId appId = yarnClient.submitApplication(app
+				.getApplicationSubmissionContext());
+
+		
+		ApplicationReport report = yarnClient.getApplicationReport(appId);
+
+		monitorApplicationReport(report);
+
+	}
+
+	private static ContainerLaunchContext createAMContainerLanunchContext(
+			Configuration conf, ApplicationId appId) throws IOException {
+		//Add this jar file to hdfs
+		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
+		FileSystem fs = FileSystem.get(conf);
+		String thisJar = ClassUtil.findContainingJar(Client.class);
+		String thisJarBaseName = FilenameUtils.getName(thisJar);
+		logger.info("thisJar is " + thisJar);
+
+		addToLocalResources(fs, thisJar, thisJarBaseName, appId.toString(),
+				localResources);
+
+		//Set CLASSPATH environment 
+		Map<String, String> env = new HashMap<String, String>();
+		StringBuilder classPathEnv = new StringBuilder(
+				Environment.CLASSPATH.$$());
+		classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
+		classPathEnv.append("./*");
+		for (String c : conf
+				.getStrings(
+						YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+						YarnConfiguration.DEFAULT_YARN_CROSS_PLATFORM_APPLICATION_CLASSPATH)) {
+			classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
+			classPathEnv.append(c.trim());
+		}
+
+		if (conf.getBoolean(YarnConfiguration.IS_MINI_YARN_CLUSTER, false)) {
+			classPathEnv.append(':');
+			classPathEnv.append(System.getProperty("java.class.path"));
+		}
+		env.put(Environment.CLASSPATH.name(), classPathEnv.toString());
+
+		//Build the execute command
+		List<String> commands = new LinkedList<String>();
+		StringBuilder command = new StringBuilder();
+		command.append(Environment.JAVA_HOME.$$()).append("/bin/java  ");
+		command.append("-Dlog4j.configuration=container-log4j.properties ");
+		command.append("-Dyarn.app.container.log.dir=" + 
+				ApplicationConstants.LOG_DIR_EXPANSION_VAR + " ");
+		command.append("-Dyarn.app.container.log.filesize=0 ");
+		command.append("-Dhadoop.root.logger=INFO,CLA ");
+		command.append("trumanz.yarnExample.ApplicationMaster ");
+		command.append("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout ");
+		command.append("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr ");
+		commands.add(command.toString());
+	
+		ContainerLaunchContext amContainer = ContainerLaunchContext
+				.newInstance(localResources, env, commands, null, null, null);
+		return amContainer;
+	}
+
+	private static void addToLocalResources(FileSystem fs, String fileSrcPath,
+			String fileDstPath, String appId,
+			Map<String, LocalResource> localResources)
+			throws IllegalArgumentException, IOException {
+		String suffix = "mytest" + "/" + appId + "/" + fileDstPath;
+		Path dst = new Path(fs.getHomeDirectory(), suffix);
+		logger.info("hdfs copyFromLocalFile " + fileSrcPath + " =>" + dst);
+		fs.copyFromLocalFile(new Path(fileSrcPath), dst);
+		FileStatus scFileStatus = fs.getFileStatus(dst);
+		LocalResource scRsrc = LocalResource.newInstance(
+				ConverterUtils.getYarnUrlFromPath(dst), LocalResourceType.FILE,
+				LocalResourceVisibility.APPLICATION, scFileStatus.getLen(),
+				scFileStatus.getModificationTime());
+
+		localResources.put(fileDstPath, scRsrc);
+
+	}
+
+	private static void monitorApplicationReport(ApplicationReport report) {
+		while (true) {
+			try {
+				Thread.sleep(5 * 1000);
+			} catch (InterruptedException e) {
+
+			}
+
+			logger.info("Got application report " + ", clientToAMToken="
+					+ report.getClientToAMToken() + ", appDiagnostics="
+					+ report.getDiagnostics() + ", appMasterHost="
+					+ report.getHost() + ", appQueue=" + report.getQueue()
+					+ ", appMasterRpcPort=" + report.getRpcPort()
+					+ ", appStartTime=" + report.getStartTime()
+					+ ", yarnAppState="
+					+ report.getYarnApplicationState().toString()
+					+ ", distributedFinalState="
+					+ report.getFinalApplicationStatus().toString()
+					+ ", appTrackingUrl=" + report.getTrackingUrl()
+					+ ", appUser=" + report.getUser());
+		}
+	}
 }

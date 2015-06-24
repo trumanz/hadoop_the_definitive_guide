@@ -18,6 +18,7 @@ public class MaxTemperatureMapper extends
 		String line = value.toString();
 		String year = line.substring(15, 19);
 		int airTemperature;
+		
 		airTemperature  = Integer.parseInt(line.substring(88, 92));
 		if(line.charAt(87) == '-'){
 			airTemperature = 0 - airTemperature;

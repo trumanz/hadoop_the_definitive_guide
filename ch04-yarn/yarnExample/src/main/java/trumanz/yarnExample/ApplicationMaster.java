@@ -11,12 +11,13 @@ public class ApplicationMaster {
 	
 	public static void main(String[] args ) throws InterruptedException{
 		
-		
+		System.out.println("This is System.out.println");
+		System.err.println("This is System.err.println");
 
 		String  containId = System.getenv(Environment.CONTAINER_ID.name());
-		System.out.println("containId " + containId);
-		LOG.warn("containId " + containId);
-		//Thread.sleep(1000*1000);
+		//System.out.println("containId " + containId);
+		LOG.warn("This is LOG " +  containId);
+		Thread.sleep(1000*1000);
 		/*
 		if (!envs.containsKey(Environment.CONTAINER_ID.name())) {
 		      if (cliParser.hasOption("app_attempt_id")) {
