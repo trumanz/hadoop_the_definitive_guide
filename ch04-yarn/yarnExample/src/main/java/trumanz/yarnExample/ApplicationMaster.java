@@ -40,15 +40,15 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
 public class ApplicationMaster {
+	private final AtomicInteger sleepSeconds = new AtomicInteger(0);
 	private class LaunchContainerTask implements Runnable {
 		Container container;
-
 		public LaunchContainerTask(Container container) {
 			this.container = container;
 		}
 		public void run() {
 			List<String> commands = new LinkedList<String>();
-			commands.add("sleep 20");
+			commands.add("sleep " + sleepSeconds.addAndGet(1));
 			ContainerLaunchContext ctx = ContainerLaunchContext.newInstance(
 					null, null, commands, null, null, null);
 			amNMClient.startContainerAsync(container, ctx);
@@ -57,29 +57,28 @@ public class ApplicationMaster {
 
 	private class RMCallbackHandler implements AMRMClientAsync.CallbackHandler {
 		
-		ExecutorService exeService = Executors.newCachedThreadPool();
+		
 
 		public void onContainersCompleted(List<ContainerStatus> statuses) {
 			for (ContainerStatus status : statuses) {
-				//LOG.info(status.getContainerId() + status.getExitStatus());
+				LOG.info("Container Completed: " + status.getContainerId().toString() 
+						+ " exitStatus="+ status.getExitStatus());
 				if (status.getExitStatus() != 0) {
 					// restart
 				}
 				ContainerId id = status.getContainerId();
 				runningContainers.remove(id);
+				numCompletedConatiners.addAndGet(1);
 			}
-			
 		}
 
 		public void onContainersAllocated(List<Container> containers) {
-			LOG.info("onContainersAllocated, Response from RM containers.size()="
-					+ containers.size());
 			for (Container c : containers) {
-				LOG.info("containerId=" + c.getId() + ", containerNode="
-						+ c.getNodeId());
+				LOG.info("Container Allocated"
+						+ ", id=" + c.getId() 
+						+ ", containerNode=" + c.getNodeId());
 				exeService.submit(new LaunchContainerTask(c));
 				runningContainers.put(c.getId(), c);
-				numRequestedContainers.decrementAndGet();
 			}
 		}
 
@@ -105,7 +104,7 @@ public class ApplicationMaster {
 
 		public void onContainerStarted(ContainerId containerId,
 				Map<String, ByteBuffer> allServiceResponse) {
-			LOG.info("Succeed to start container " + containerId);
+			LOG.info("Container Stared " + containerId.toString());
 
 		}
 
@@ -144,7 +143,9 @@ public class ApplicationMaster {
 	AMRMClientAsync amRMClient = null;
 	NMClientAsyncImpl amNMClient = null;
 	
-	AtomicInteger numRequestedContainers = new AtomicInteger();
+	AtomicInteger numTotalContainers = new AtomicInteger(10);
+	AtomicInteger numCompletedConatiners = new AtomicInteger(0);
+	ExecutorService exeService = Executors.newCachedThreadPool();
 	Map<ContainerId, Container> runningContainers = new ConcurrentHashMap<ContainerId, Container>();
 	
 	private static final Log LOG = LogFactory.getLog(ApplicationMaster.class);
@@ -174,21 +175,22 @@ public class ApplicationMaster {
 		response.getContainersFromPreviousAttempts();
 		int numContainers = 10;
 
-		for (int i = 0; i < numContainers; i++) {
+		for (int i = 0; i < numTotalContainers.get(); i++) {
 			ContainerRequest containerAsk = new ContainerRequest(
+					//100*10M + 1vcpu
 					Resource.newInstance(100, 1), null, null,
 					Priority.newInstance(0));
 			amRMClient.addContainerRequest(containerAsk);
 		}
-		numRequestedContainers.set(numContainers);
 	}
 	
 	void waitComplete() throws YarnException, IOException{
-		while(numRequestedContainers.get() != 0 || runningContainers.size() != 0){
+		while(numTotalContainers.get() != numCompletedConatiners.get()){
 			try{
 				Thread.sleep(200);
 			} catch (InterruptedException ex){}
 		}
+		exeService.shutdown();
 		amNMClient.stop();
 		
 		amRMClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "dummy Message", null);

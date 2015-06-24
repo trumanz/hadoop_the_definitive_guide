@@ -65,7 +65,7 @@ public class Client {
 				conf, app.getApplicationSubmissionContext().getApplicationId());
 		app.getApplicationSubmissionContext().setAMContainerSpec(amContainer);
 
-		// 4. Set the app's resource usage, 100MB, 1vCPU
+		// 4. Set the app's resource usage, 100*10MB, 1vCPU
 		Resource capability = Resource.newInstance(100, 1);
 		app.getApplicationSubmissionContext().setResource(capability);
 		
